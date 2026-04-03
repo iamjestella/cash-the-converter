@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { Copy, Send, Zap, CheckCheck, Link, Loader2, X } from "lucide-react";
+import React, { useState, useEffect, useRef } from "react";
+import { Copy, Send, Zap, CheckCheck, Link, Loader2, X, ImagePlus } from "lucide-react";
 
 const products: Record<string, string[]> = {
   "iBuildSkills.com": [
@@ -50,7 +50,11 @@ export default function CashTheConverter() {
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState("");
   const [urlContent, setUrlContent] = useState("");
-  const [urlMode, setUrlMode] = useState(false); // true = URL overrides all product knowledge
+  const [urlMode, setUrlMode] = useState(false);
+  const [uploadedImage, setUploadedImage] = useState<string | null>(null); // base64
+  const [uploadedImageName, setUploadedImageName] = useState("");
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState({
     brand: "iBuildSkills.com",
     product: "Abe the Architect™ (Free Lead Magnet)",
@@ -86,7 +90,7 @@ export default function CashTheConverter() {
         setError(`Could not fetch URL: ${data.error}`);
       } else {
         setUrlContent(data.content);
-        setUrlMode(true); // URL loaded = override mode ON
+        setUrlMode(true);
         setError("");
       }
     } catch {
@@ -101,6 +105,45 @@ export default function CashTheConverter() {
     setUrlMode(false);
   };
 
+  const handleImageFile = (file: File) => {
+    if (!file.type.startsWith("image/")) {
+      setError("Please upload an image file (JPG, PNG, WEBP, etc.)");
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setError("Image must be under 10MB.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const result = e.target?.result as string;
+      // Strip the data:image/...;base64, prefix — we just want the raw base64
+      const base64 = result.split(",")[1];
+      setUploadedImage(base64);
+      setUploadedImageName(file.name);
+      setError("");
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) handleImageFile(file);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) handleImageFile(file);
+  };
+
+  const clearImage = () => {
+    setUploadedImage(null);
+    setUploadedImageName("");
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
   const handleGenerate = async () => {
     setLoading(true);
     setOutput("");
@@ -113,6 +156,7 @@ export default function CashTheConverter() {
           ...formData,
           urlContent: urlContent,
           urlMode: urlMode,
+          uploadedImage: uploadedImage || null,
         }),
       });
       const data = await response.json();
@@ -159,6 +203,8 @@ export default function CashTheConverter() {
         .url-mode-banner { background: linear-gradient(135deg, #111 0%, #1a1a1a 100%); border: 3px solid #FFD600; }
         .dimmed { opacity: 0.35; pointer-events: none; user-select: none; }
         .dimmed-label { opacity: 0.35; }
+        .drop-zone { transition: all 0.2s ease; }
+        .drop-zone.dragging { border-color: #FFD600 !important; background-color: #fffbe6 !important; }
       `,
         }}
       />
@@ -206,6 +252,67 @@ export default function CashTheConverter() {
           </h2>
 
           <div className="space-y-5 relative z-10">
+
+            {/* DESIGN IMAGE UPLOAD */}
+            <div>
+              <label className={labelClass} style={{ fontFamily: "'Oswald', sans-serif" }}>
+                Design / Mockup Image
+                <span
+                  className="ml-2 text-[10px] text-[#D32F2F] normal-case font-normal"
+                  style={{ fontFamily: "'Lato', sans-serif" }}
+                >
+                  Cash will look at this and write copy based on what it sees
+                </span>
+              </label>
+
+              {uploadedImage ? (
+                /* Image preview */
+                <div className="border-[3px] border-[#FFD600] bg-[#fffbe6] p-3 flex items-center gap-3">
+                  <img
+                    src={`data:image/jpeg;base64,${uploadedImage}`}
+                    alt="Uploaded design"
+                    className="w-16 h-16 object-cover border-2 border-[#111]"
+                  />
+                  <div className="flex-grow min-w-0">
+                    <p className="text-[#111] font-bold text-sm truncate">{uploadedImageName}</p>
+                    <p className="text-xs text-green-700 font-bold uppercase tracking-wider mt-1">
+                      ✓ Image loaded — Cash will analyze this design
+                    </p>
+                  </div>
+                  <button
+                    onClick={clearImage}
+                    className="border-[3px] border-[#111111] p-2 bg-[#D32F2F] text-white hover:bg-[#111] transition-colors flex-shrink-0"
+                    title="Remove image"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+              ) : (
+                /* Drop zone */
+                <div
+                  className={`drop-zone border-[3px] border-dashed border-[#111] p-6 text-center cursor-pointer hover:border-[#FFD600] hover:bg-[#fffbe6] transition-all ${isDragging ? "dragging" : ""}`}
+                  onClick={() => fileInputRef.current?.click()}
+                  onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                  onDragLeave={() => setIsDragging(false)}
+                  onDrop={handleDrop}
+                >
+                  <ImagePlus size={32} className="mx-auto mb-2 text-[#111] opacity-40" />
+                  <p className="text-[#111] font-bold text-sm">
+                    Drop your design or mockup here
+                  </p>
+                  <p className="text-xs text-gray-400 mt-1">
+                    or click to browse — JPG, PNG, WEBP up to 10MB
+                  </p>
+                </div>
+              )}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleImageUpload}
+              />
+            </div>
 
             {/* REFERENCE URL — always first, controls everything */}
             <div>
