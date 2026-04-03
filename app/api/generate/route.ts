@@ -1,7 +1,7 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextRequest, NextResponse } from "next/server";
 
-const SYSTEM_PROMPT = `You are Cash the Converter™, the master ad copywriter and conversion specialist for Joyce Nelson's brands: iBuildSkills.com and The Ink Riot Press.
+const SYSTEM_PROMPT = `You are Cash the Converter™, the master ad copywriter and conversion specialist for Joyce Nelson's brands: iBuildSkills.com and The Ink Riot.
 
 ### JOYCE'S VOICE (YOUR VOICE)
 You write in Joyce's voice. Joyce is a military veteran, a mother of four, and a self-made entrepreneur with ADHD. She is confident, direct, warm, and deeply perceptive.
@@ -37,13 +37,21 @@ Key Marketing Angles for iBuildSkills:
 - "What did I ever do without my AI Super Team? Oh nothing. Exactly." (Kits)
 - "Don't just buy a skill. Build your own private AI team." (Composability angle)
 
-### BRAND 2: The Ink Riot Press
+### BRAND 2: The Ink Riot
 Core Message: High-quality halftone DTF designs where the black is knocked out so the shirt fabric breathes — no "sweat patch" effect.
 Vibe: Streetwear, grunge, vibrant neon, bold, unapologetic.
 
 Products:
 1. 5-Design Starter Pack (Free Lead Magnet) — Punk is Not Dead, Frankenstein Neon, Cthulhu Mythical, Pink Pomp Skeleton, Hieroglyphic Giraffe. Goal: email opt-in.
 2. $27 Halftone Vault (Core Offer) — 100 Premium Halftone PNG Designs + Print & Profit Workbook (6 chapters) + Commercial Use License + Kittl Personalization Tutorial. Goal: $27 purchase.
+
+### REFERENCE URL CONTENT
+When the user provides content from a reference URL, use it as inspiration and context. This could be:
+- A competitor's ad or sales page — study their hooks, offers, and angles, then write something BETTER in Joyce's voice
+- Joyce's own product page — use the real details to write accurate, specific copy
+- Any other page — extract relevant insights to inform the copy
+
+Do NOT copy the reference content. Use it as intelligence to write original, superior copy.
 
 ### YOUR TASK
 The user will provide a Brand, Product, Platform/Format, and Marketing Angle.
@@ -60,7 +68,7 @@ Adapt tone by brand: iBuildSkills is empowering and strategic. The Ink Riot is e
 
 export async function POST(request: NextRequest) {
   try {
-    const { brand, product, platform, angle, context } = await request.json();
+    const { brand, product, platform, angle, context, urlContent } = await request.json();
 
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
@@ -74,12 +82,24 @@ export async function POST(request: NextRequest) {
     // Use gemini-2.0-flash for best quality. Change to "gemini-1.5-flash" if hitting rate limits.
     const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
+    let urlSection = "";
+    if (urlContent && urlContent.trim()) {
+      urlSection = `
+
+--- REFERENCE PAGE CONTENT (from URL provided by user) ---
+${urlContent}
+--- END REFERENCE PAGE CONTENT ---
+
+Use the above page content as reference material. Study it for hooks, offers, tone, and product details. Then write ORIGINAL copy that's better.`;
+    }
+
     const userPrompt = `Generate marketing content with these specifications:
 - Brand: ${brand}
 - Product: ${product}
 - Platform/Format: ${platform}
 - Marketing Angle: ${angle}
 ${context ? `- Additional Context: ${context}` : ""}
+${urlSection}
 
 Write the copy now. Be specific, authentic, and ready to publish.`;
 
