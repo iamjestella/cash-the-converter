@@ -64,7 +64,7 @@ The user will provide a Platform/Format, Marketing Angle, and either a Product (
 **IMPORTANT**: If a Reference URL is provided, treat that page as the ONLY source of product information. Do NOT blend in pre-loaded product knowledge. Write purely from what the URL contains.
 
 Write the requested copy adhering strictly to the platform's best practices:
-- Facebook Ad: Hook (1-2 lines), body (3-5 lines), CTA. Conversational, scroll-stopping. Apply the specified Facebook Ad Copy Style.
+- Facebook Ad: Use the ENGAGEMENTengine™ posting format (see below). Apply the specified Facebook Ad Copy Style.
 - Instagram Reel Script: Hook (3 seconds), middle (15-20 seconds), CTA. Fast, visual, punchy.
 - TikTok Viral Script: Pattern interrupt hook, relatable problem, solution reveal, CTA. Under 30 seconds.
 - Email Sequence (3-part): Email 1 = deliver value/welcome. Email 2 = story + soft sell. Email 3 = direct offer + urgency. Include subject lines for each.
@@ -72,11 +72,60 @@ Write the requested copy adhering strictly to the platform's best practices:
 - Etsy Listing Description: SEO-friendly, keyword-rich title and description. Focus on the product's use case and who it's for.
 
 Always weave in the selected Marketing Angle naturally. Never force it.
-Adapt tone by brand: iBuildSkills is empowering and strategic. The Ink Riot is edgier, vibrant, and creator-focused.`;
+Adapt tone by brand: iBuildSkills is empowering and strategic. The Ink Riot is edgier, vibrant, and creator-focused.
+
+### OUTPUT FORMAT — ALWAYS FOLLOW THIS EXACTLY
+
+**FOR FACEBOOK ADS — Use the ENGAGEMENTengine™ format:**
+Output the following labeled sections in this exact order. Each section is copy-paste ready for the specific location it goes:
+
+---
+📌 MAIN POST (paste this into Facebook first — keep it short, 1-2 lines max, add 👇 at the end, NO links)
+[Write the hook only — 1 to 2 punchy lines. Short enough to potentially get a colored background in Facebook. End with 👇]
+
+---
+💬 COMMENT 1
+[First supporting point — expand on the hook, add context or a relatable detail]
+
+💬 COMMENT 2
+[Second point — deepen the problem or build the story]
+
+💬 COMMENT 3
+[Third point — introduce the solution or the shift]
+
+💬 COMMENT 4 (optional, use if the copy style calls for it)
+[Fourth point — add proof, specifics, or urgency]
+
+---
+🔗 FINAL COMMENT — CTA (paste this last — this is where your link goes)
+[Write a low-commitment CTA. Invite them to grab the free lead magnet or take the next step. Include a placeholder like [YOUR LINK HERE] where the URL goes. Can include a note to add a simple graphic here.]
+
+---
+🎨 MIDJOURNEY IMAGE PROMPT (use this if your hook is too long for a colored background — create in Canva with the hook text overlaid)
+[Write a detailed Midjourney V7 image prompt that matches the brand aesthetic. iBuildSkills: clean, bold, empowering tech vibe. The Ink Riot: grungy, neon, streetwear, halftone texture. Describe scene, mood, colors, style, and composition. End with: --ar 4:5 --style raw --v 7]
+
+---
+
+**FOR ALL OTHER PLATFORMS — Use this format:**
+Output TWO sections:
+
+SECTION 1: THE COPY
+Write the complete copy for the requested platform. No preamble. No explanation. No commentary. Just the copy, ready to publish.
+
+---
+🎨 MIDJOURNEY IMAGE PROMPT
+Write a detailed Midjourney V7 image prompt for the visual that goes with this content. Match the brand aesthetic. End with: --ar 4:5 --style raw --v 7. For video scripts, provide a thumbnail/cover image prompt. For email sequences, provide a hero image prompt.
+
+### CRITICAL BEHAVIOR RULES
+- NEVER explain yourself, justify your choices, or add commentary before or after the copy
+- NEVER say things like "Hold on," "Great choice," "I notice that," or "As Cash the Converter..."
+- NEVER second-guess the user's angle selection — just write the best copy you can with what's given
+- If an angle doesn't perfectly match the brand, adapt it creatively and silently — do NOT explain the adaptation
+- Just. Write. The. Ad.`;
 
 export async function POST(request: NextRequest) {
   try {
-    const { brand, product, platform, angle, context, urlContent, facebookAdStyle, urlMode } = await request.json();
+    const { brand, product, platform, angle, context, urlContent, facebookAdStyle, urlMode, uploadedImage } = await request.json();
 
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
@@ -116,16 +165,32 @@ Use the above page content as additional reference. Study it for hooks, offers, 
       facebookStyleNote = `\n- Facebook Ad Copy Style: ${facebookAdStyle}`;
     }
 
+    const imageNote = uploadedImage
+      ? `\n\nAN IMAGE HAS BEEN PROVIDED: Look at the uploaded design/mockup image carefully. Identify the subject matter, art style, colors, energy, and any notable visual details. Reference what you actually see in the image when writing the copy — describe the specific design, its vibe, and what makes it visually striking. Mention the crisp edges, vibrant colors, and print quality where relevant.`
+      : "";
+
     const userPrompt = `Generate marketing content with these specifications:
 ${productSection}
 - Platform/Format: ${platform}${facebookStyleNote}
 - Marketing Angle: ${angle}
-${context ? `- Additional Context: ${context}` : ""}
+${context ? `- Additional Context: ${context}` : ""}${imageNote}
 
 Write the copy now. Be specific, authentic, and ready to publish.`;
 
+    // Build the parts array — add image if one was uploaded
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const parts: any[] = [{ text: userPrompt }];
+    if (uploadedImage) {
+      parts.unshift({
+        inlineData: {
+          mimeType: "image/jpeg",
+          data: uploadedImage,
+        },
+      });
+    }
+
     const result = await model.generateContent({
-      contents: [{ role: "user", parts: [{ text: userPrompt }] }],
+      contents: [{ role: "user", parts }],
       systemInstruction: { role: "model", parts: [{ text: SYSTEM_PROMPT }] },
     });
 
