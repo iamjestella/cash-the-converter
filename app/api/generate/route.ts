@@ -87,9 +87,8 @@ export async function POST(request: NextRequest) {
     }
 
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
-    // If URL mode is active, ignore pre-loaded product knowledge
     let productSection = "";
     if (urlMode && urlContent && urlContent.trim()) {
       productSection = `
@@ -112,7 +111,6 @@ Use the above page content as additional reference. Study it for hooks, offers, 
       }
     }
 
-    // Add Facebook ad style instruction if applicable
     let facebookStyleNote = "";
     if (platform === "Facebook Ad" && facebookAdStyle) {
       facebookStyleNote = `\n- Facebook Ad Copy Style: ${facebookAdStyle}`;
