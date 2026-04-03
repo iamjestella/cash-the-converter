@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Copy, Send, Zap, CheckCheck, Link, Loader2 } from "lucide-react";
+import { Copy, Send, Zap, CheckCheck, Link, Loader2, X } from "lucide-react";
 
 const products: Record<string, string[]> = {
   "iBuildSkills.com": [
@@ -27,6 +27,14 @@ const platforms = [
   "Etsy Listing Description",
 ];
 
+const facebookAdStyles = [
+  "PAS (Problem-Agitate-Solution)",
+  "Social Proof / Testimonial",
+  "Story Hook",
+  "Direct Response / Offer-First",
+  "Curiosity Gap / Question Hook",
+];
+
 const angles = [
   "Stop buying one tool, build an agent",
   "The ADHD/Overwhelm Fix",
@@ -42,10 +50,12 @@ export default function CashTheConverter() {
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState("");
   const [urlContent, setUrlContent] = useState("");
+  const [urlMode, setUrlMode] = useState(false); // true = URL overrides all product knowledge
   const [formData, setFormData] = useState({
     brand: "iBuildSkills.com",
     product: "Abe the Architect™ (Free Lead Magnet)",
     platform: "Facebook Ad",
+    facebookAdStyle: "PAS (Problem-Agitate-Solution)",
     angle: "Stop buying one tool, build an agent",
     context: "",
     url: "",
@@ -62,6 +72,7 @@ export default function CashTheConverter() {
     if (!formData.url.trim()) return;
     setFetchingUrl(true);
     setUrlContent("");
+    setUrlMode(false);
     try {
       const response = await fetch("/api/scrape", {
         method: "POST",
@@ -71,15 +82,23 @@ export default function CashTheConverter() {
       const data = await response.json();
       if (data.error) {
         setUrlContent("");
+        setUrlMode(false);
         setError(`Could not fetch URL: ${data.error}`);
       } else {
         setUrlContent(data.content);
+        setUrlMode(true); // URL loaded = override mode ON
         setError("");
       }
     } catch {
       setError("Failed to fetch URL content.");
     }
     setFetchingUrl(false);
+  };
+
+  const clearUrl = () => {
+    setFormData({ ...formData, url: "" });
+    setUrlContent("");
+    setUrlMode(false);
   };
 
   const handleGenerate = async () => {
@@ -93,6 +112,7 @@ export default function CashTheConverter() {
         body: JSON.stringify({
           ...formData,
           urlContent: urlContent,
+          urlMode: urlMode,
         }),
       });
       const data = await response.json();
@@ -136,6 +156,9 @@ export default function CashTheConverter() {
         select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M6 8L1 3h10z' fill='%23111'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 36px; }
         @keyframes pulse-glow { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
         .generating { animation: pulse-glow 1.5s ease-in-out infinite; }
+        .url-mode-banner { background: linear-gradient(135deg, #111 0%, #1a1a1a 100%); border: 3px solid #FFD600; }
+        .dimmed { opacity: 0.35; pointer-events: none; user-select: none; }
+        .dimmed-label { opacity: 0.35; }
       `,
         }}
       />
@@ -183,9 +206,81 @@ export default function CashTheConverter() {
           </h2>
 
           <div className="space-y-5 relative z-10">
+
+            {/* REFERENCE URL — always first, controls everything */}
             <div>
               <label className={labelClass} style={{ fontFamily: "'Oswald', sans-serif" }}>
-                Brand
+                Reference URL
+                {urlMode && (
+                  <span
+                    className="ml-2 text-[#D32F2F] text-xs normal-case"
+                    style={{ fontFamily: "'Lato', sans-serif" }}
+                  >
+                    ★ URL MODE ACTIVE — writing from this page only
+                  </span>
+                )}
+              </label>
+              <div className="flex gap-2">
+                <div className="relative flex-grow">
+                  <div className="absolute left-3 top-1/2 -translate-y-1/2">
+                    <Link size={16} color="#111" />
+                  </div>
+                  <input
+                    type="url"
+                    className={`w-full border-[3px] p-3 pl-10 text-[#111111] focus:outline-none resize-none ${
+                      urlMode
+                        ? "border-[#FFD600] bg-[#fffbe6]"
+                        : "border-[#111111] bg-white focus:bg-[#FFD600]"
+                    }`}
+                    placeholder="Paste any URL — product page, competitor ad, sales funnel..."
+                    value={formData.url}
+                    onChange={(e) =>
+                      setFormData({ ...formData, url: e.target.value })
+                    }
+                  />
+                </div>
+                {urlMode ? (
+                  <button
+                    onClick={clearUrl}
+                    className="border-[3px] border-[#111111] px-4 bg-[#D32F2F] text-white hover:bg-[#111] transition-colors flex items-center gap-2"
+                    style={{ fontFamily: "'Oswald', sans-serif" }}
+                    title="Clear URL and return to product mode"
+                  >
+                    <X size={18} />
+                  </button>
+                ) : (
+                  <button
+                    onClick={fetchUrlContent}
+                    disabled={fetchingUrl || !formData.url.trim()}
+                    className="border-[3px] border-[#111111] px-4 bg-[#111] text-white hover:bg-[#D32F2F] transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
+                    style={{ fontFamily: "'Oswald', sans-serif" }}
+                  >
+                    {fetchingUrl ? (
+                      <Loader2 size={18} className="animate-spin" />
+                    ) : (
+                      "FETCH"
+                    )}
+                  </button>
+                )}
+              </div>
+              {urlMode ? (
+                <div className="mt-2 text-xs text-[#D32F2F] font-bold uppercase tracking-wider flex items-center gap-1">
+                  ✓ URL loaded — Brand &amp; Product fields are overridden. Cash writes from this page only. Hit ✕ to reset.
+                </div>
+              ) : (
+                <p className="mt-1 text-xs text-gray-400 italic">
+                  Optional — paste any URL and hit FETCH. When loaded, Cash ignores pre-set products and writes purely from this page.
+                </p>
+              )}
+            </div>
+
+            {/* BRAND — dimmed when URL mode is active */}
+            <div className={urlMode ? "dimmed" : ""}>
+              <label
+                className={`${labelClass} ${urlMode ? "dimmed-label" : ""}`}
+                style={{ fontFamily: "'Oswald', sans-serif" }}
+              >
+                Brand {urlMode && <span className="text-gray-400 normal-case font-normal text-xs">(overridden by URL)</span>}
               </label>
               <select
                 className={selectClass}
@@ -193,15 +288,20 @@ export default function CashTheConverter() {
                 onChange={(e) =>
                   setFormData({ ...formData, brand: e.target.value })
                 }
+                tabIndex={urlMode ? -1 : 0}
               >
                 <option>iBuildSkills.com</option>
                 <option>The Ink Riot</option>
               </select>
             </div>
 
-            <div>
-              <label className={labelClass} style={{ fontFamily: "'Oswald', sans-serif" }}>
-                Product to Promote
+            {/* PRODUCT — dimmed when URL mode is active */}
+            <div className={urlMode ? "dimmed" : ""}>
+              <label
+                className={`${labelClass} ${urlMode ? "dimmed-label" : ""}`}
+                style={{ fontFamily: "'Oswald', sans-serif" }}
+              >
+                Product to Promote {urlMode && <span className="text-gray-400 normal-case font-normal text-xs">(overridden by URL)</span>}
               </label>
               <select
                 className={selectClass}
@@ -209,6 +309,7 @@ export default function CashTheConverter() {
                 onChange={(e) =>
                   setFormData({ ...formData, product: e.target.value })
                 }
+                tabIndex={urlMode ? -1 : 0}
               >
                 {products[formData.brand].map((p) => (
                   <option key={p} value={p}>
@@ -218,48 +319,7 @@ export default function CashTheConverter() {
               </select>
             </div>
 
-            <div>
-              <label className={labelClass} style={{ fontFamily: "'Oswald', sans-serif" }}>
-                Reference URL
-              </label>
-              <div className="flex gap-2">
-                <div className="relative flex-grow">
-                  <div className="absolute left-3 top-1/2 -translate-y-1/2">
-                    <Link size={16} color="#111" />
-                  </div>
-                  <input
-                    type="url"
-                    className="w-full border-[3px] border-[#111111] p-3 pl-10 bg-white text-[#111111] focus:bg-[#FFD600] outline-none"
-                    placeholder="Paste a product page, competitor ad, or sales page URL..."
-                    value={formData.url}
-                    onChange={(e) =>
-                      setFormData({ ...formData, url: e.target.value })
-                    }
-                  />
-                </div>
-                <button
-                  onClick={fetchUrlContent}
-                  disabled={fetchingUrl || !formData.url.trim()}
-                  className="border-[3px] border-[#111111] px-4 bg-[#111] text-white hover:bg-[#D32F2F] transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
-                  style={{ fontFamily: "'Oswald', sans-serif" }}
-                >
-                  {fetchingUrl ? (
-                    <Loader2 size={18} className="animate-spin" />
-                  ) : (
-                    "FETCH"
-                  )}
-                </button>
-              </div>
-              {urlContent && (
-                <div className="mt-2 text-xs text-green-700 font-bold uppercase tracking-wider flex items-center gap-1">
-                  ✓ Page content loaded — Cash will use this as reference
-                </div>
-              )}
-              <p className="mt-1 text-xs text-gray-400 italic">
-                Optional — paste any URL and hit FETCH. Cash will read the page and use it to write smarter copy.
-              </p>
-            </div>
-
+            {/* PLATFORM */}
             <div>
               <label className={labelClass} style={{ fontFamily: "'Oswald', sans-serif" }}>
                 Platform / Format
@@ -279,6 +339,45 @@ export default function CashTheConverter() {
               </select>
             </div>
 
+            {/* FACEBOOK AD STYLE — only shows when Facebook Ad is selected */}
+            {formData.platform === "Facebook Ad" && (
+              <div
+                className="border-l-4 border-[#FFD600] pl-4"
+                style={{ borderLeftColor: "#FFD600" }}
+              >
+                <label className={labelClass} style={{ fontFamily: "'Oswald', sans-serif" }}>
+                  Facebook Ad Copy Style
+                  <span
+                    className="ml-2 text-[10px] text-[#D32F2F] normal-case font-normal"
+                    style={{ fontFamily: "'Lato', sans-serif" }}
+                  >
+                    Mix these up — Facebook rewards variety
+                  </span>
+                </label>
+                <select
+                  className={selectClass}
+                  value={formData.facebookAdStyle}
+                  onChange={(e) =>
+                    setFormData({ ...formData, facebookAdStyle: e.target.value })
+                  }
+                >
+                  {facebookAdStyles.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-1 text-xs text-gray-400 italic">
+                  {formData.facebookAdStyle === "PAS (Problem-Agitate-Solution)" && "Opens with the pain, twists the knife, delivers the fix. Best for cold audiences."}
+                  {formData.facebookAdStyle === "Social Proof / Testimonial" && "Leads with a result or transformation. \"She made $X in 30 days...\" — drives shares and tags."}
+                  {formData.facebookAdStyle === "Story Hook" && "Personal narrative that pulls people in before the pitch. Great for warm audiences."}
+                  {formData.facebookAdStyle === "Direct Response / Offer-First" && "Lead with the deal. Price, value, deadline. Best for retargeting."}
+                  {formData.facebookAdStyle === "Curiosity Gap / Question Hook" && "Bold question or claim that creates a pattern interrupt. Drives clicks and comments."}
+                </p>
+              </div>
+            )}
+
+            {/* MARKETING ANGLE */}
             <div>
               <label className={labelClass} style={{ fontFamily: "'Oswald', sans-serif" }}>
                 Marketing Angle
@@ -298,6 +397,7 @@ export default function CashTheConverter() {
               </select>
             </div>
 
+            {/* ADDITIONAL CONTEXT */}
             <div>
               <label className={labelClass} style={{ fontFamily: "'Oswald', sans-serif" }}>
                 Additional Context
