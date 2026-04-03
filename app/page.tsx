@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Copy, Send, Zap, CheckCheck } from "lucide-react";
+import { Copy, Send, Zap, CheckCheck, Link, Loader2 } from "lucide-react";
 
 const products: Record<string, string[]> = {
   "iBuildSkills.com": [
@@ -12,7 +12,7 @@ const products: Record<string, string[]> = {
     "Pro Kit ($57)",
     "Full Agent Kit ($97)",
   ],
-  "The Ink Riot Press": [
+  "The Ink Riot": [
     "5-Design Starter Pack (Free)",
     "$27 Halftone Vault",
   ],
@@ -37,15 +37,18 @@ const angles = [
 
 export default function CashTheConverter() {
   const [loading, setLoading] = useState(false);
+  const [fetchingUrl, setFetchingUrl] = useState(false);
   const [output, setOutput] = useState("");
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState("");
+  const [urlContent, setUrlContent] = useState("");
   const [formData, setFormData] = useState({
     brand: "iBuildSkills.com",
     product: "Abe the Architect™ (Free Lead Magnet)",
     platform: "Facebook Ad",
     angle: "Stop buying one tool, build an agent",
     context: "",
+    url: "",
   });
 
   useEffect(() => {
@@ -55,6 +58,30 @@ export default function CashTheConverter() {
     }));
   }, [formData.brand]);
 
+  const fetchUrlContent = async () => {
+    if (!formData.url.trim()) return;
+    setFetchingUrl(true);
+    setUrlContent("");
+    try {
+      const response = await fetch("/api/scrape", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: formData.url }),
+      });
+      const data = await response.json();
+      if (data.error) {
+        setUrlContent("");
+        setError(`Could not fetch URL: ${data.error}`);
+      } else {
+        setUrlContent(data.content);
+        setError("");
+      }
+    } catch {
+      setError("Failed to fetch URL content.");
+    }
+    setFetchingUrl(false);
+  };
+
   const handleGenerate = async () => {
     setLoading(true);
     setOutput("");
@@ -63,7 +90,10 @@ export default function CashTheConverter() {
       const response = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          urlContent: urlContent,
+        }),
       });
       const data = await response.json();
       if (data.error) {
@@ -165,7 +195,7 @@ export default function CashTheConverter() {
                 }
               >
                 <option>iBuildSkills.com</option>
-                <option>The Ink Riot Press</option>
+                <option>The Ink Riot</option>
               </select>
             </div>
 
@@ -186,6 +216,48 @@ export default function CashTheConverter() {
                   </option>
                 ))}
               </select>
+            </div>
+
+            <div>
+              <label className={labelClass} style={{ fontFamily: "'Oswald', sans-serif" }}>
+                Reference URL
+              </label>
+              <div className="flex gap-2">
+                <div className="relative flex-grow">
+                  <div className="absolute left-3 top-1/2 -translate-y-1/2">
+                    <Link size={16} color="#111" />
+                  </div>
+                  <input
+                    type="url"
+                    className="w-full border-[3px] border-[#111111] p-3 pl-10 bg-white text-[#111111] focus:bg-[#FFD600] outline-none"
+                    placeholder="Paste a product page, competitor ad, or sales page URL..."
+                    value={formData.url}
+                    onChange={(e) =>
+                      setFormData({ ...formData, url: e.target.value })
+                    }
+                  />
+                </div>
+                <button
+                  onClick={fetchUrlContent}
+                  disabled={fetchingUrl || !formData.url.trim()}
+                  className="border-[3px] border-[#111111] px-4 bg-[#111] text-white hover:bg-[#D32F2F] transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
+                  style={{ fontFamily: "'Oswald', sans-serif" }}
+                >
+                  {fetchingUrl ? (
+                    <Loader2 size={18} className="animate-spin" />
+                  ) : (
+                    "FETCH"
+                  )}
+                </button>
+              </div>
+              {urlContent && (
+                <div className="mt-2 text-xs text-green-700 font-bold uppercase tracking-wider flex items-center gap-1">
+                  ✓ Page content loaded — Cash will use this as reference
+                </div>
+              )}
+              <p className="mt-1 text-xs text-gray-400 italic">
+                Optional — paste any URL and hit FETCH. Cash will read the page and use it to write smarter copy.
+              </p>
             </div>
 
             <div>
@@ -326,7 +398,7 @@ export default function CashTheConverter() {
         style={{ fontFamily: "'Oswald', sans-serif" }}
       >
         &copy; {new Date().getFullYear()} Joyce Nelson &middot; iBuildSkills.com
-        &amp; The Ink Riot Press
+        &amp; The Ink Riot
       </footer>
     </div>
   );
